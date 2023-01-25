@@ -303,11 +303,13 @@ abstract class HashExpression[E] extends Expression {
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     ev.isNull = FalseLiteral
 
-    val childrenHash = children.map { child =>
+    val childrenHash = children.zipWithIndex.map { case (child, index) =>
       val childGen = child.genCode(ctx)
-      childGen.code + ctx.nullSafeExec(child.nullable, childGen.isNull) {
-        computeHash(childGen.value, child.dataType, ev.value, ctx)
-      }
+      childGen.code +
+        computeHash(index.toString, IntegerType, ev.value, ctx) +
+        ctx.nullSafeExec(child.nullable, childGen.isNull) {
+          computeHash(childGen.value, child.dataType, ev.value, ctx)
+        }
     }
 
     val hashResultType = CodeGenerator.javaType(dataType)
@@ -442,6 +444,7 @@ abstract class HashExpression[E] extends Expression {
     val index = ctx.freshName("index")
     s"""
         for (int $index = 0; $index < $input.numElements(); $index++) {
+          ${nullSafeElementHash(index, index, false, IntegerType, result, ctx)}
           ${nullSafeElementHash(input, index, containsNull, elementType, result, ctx)}
         }
       """
@@ -453,8 +456,11 @@ abstract class HashExpression[E] extends Expression {
       result: String,
       fields: Array[StructField]): String = {
     val tmpInput = ctx.freshName("input")
-    val fieldsHash = fields.zipWithIndex.map { case (field, index) =>
-      nullSafeElementHash(tmpInput, index.toString, field.nullable, field.dataType, result, ctx)
+    val fieldsHash = fields.zipWithIndex.flatMap { case (field, index) =>
+      Seq(
+        nullSafeElementHash(field.name, index.toString, nullable = false, StringType, result, ctx),
+        nullSafeElementHash(tmpInput, index.toString, field.nullable, field.dataType, result, ctx)
+      )
     }
     val hashResultType = CodeGenerator.javaType(dataType)
     val code = ctx.splitExpressions(
