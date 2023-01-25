@@ -291,6 +291,7 @@ abstract class HashExpression[E] extends Expression {
     var i = 0
     val len = children.length
     while (i < len) {
+      hash = computeHash(i, IntegerType, hash)
       hash = computeHash(children(i).eval(input), children(i).dataType, hash)
       i += 1
     }
@@ -584,7 +585,7 @@ abstract class InterpretedHashFunction {
         val (fields, types): (Array[String], Array[DataType]) = dataType match {
           case udt: UserDefinedType[_] =>
             (
-              udt.sqlType.asInstanceOf[StructType].map(_.name),
+              udt.sqlType.asInstanceOf[StructType].map(_.name).toArray,
               udt.sqlType.asInstanceOf[StructType].map(_.dataType).toArray
             )
           case StructType(fields) =>
