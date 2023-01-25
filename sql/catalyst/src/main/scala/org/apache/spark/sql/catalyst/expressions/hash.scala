@@ -556,7 +556,6 @@ abstract class InterpretedHashFunction {
         var result = seed
         var i = 0
         while (i < array.numElements()) {
-          result = hash(i, IntegerType, result)
           result = hash(array.get(i, elementType), elementType, result)
           i += 1
         }
@@ -581,23 +580,15 @@ abstract class InterpretedHashFunction {
         result
 
       case struct: InternalRow =>
-        val (fields, types): (Array[String], Array[DataType]) = dataType match {
+        val types: Array[DataType] = dataType match {
           case udt: UserDefinedType[_] =>
-            (
-              udt.sqlType.asInstanceOf[StructType].map(_.name),
-              udt.sqlType.asInstanceOf[StructType].map(_.dataType).toArray
-            )
-          case StructType(fields) =>
-            (
-              fields.map(_.name),
-              fields.map(_.dataType)
-            )
+            udt.sqlType.asInstanceOf[StructType].map(_.dataType).toArray
+          case StructType(fields) => fields.map(_.dataType)
         }
         var result = seed
         var i = 0
         val len = struct.numFields
         while (i < len) {
-          result = hash(fields(i), StringType, result)
           result = hash(struct.get(i, types(i)), types(i), result)
           i += 1
         }
