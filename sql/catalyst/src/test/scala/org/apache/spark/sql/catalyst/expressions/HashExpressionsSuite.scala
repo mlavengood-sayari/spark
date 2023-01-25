@@ -729,6 +729,17 @@ class HashExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
     checkResult(Literal.create(-0F, FloatType), Literal.create(0F, FloatType))
   }
 
+  test("SPARK-?????: Hashes should differ based on indexing/struct field differences") {
+    def checkResult(exprs1: Expression, exprs2: Expression): Unit = {
+      checkEvaluation(Murmur3Hash(Seq(exprs1), 42), Murmur3Hash(Seq(exprs2), 42).eval())
+      checkEvaluation(XxHash64(Seq(exprs1), 42), XxHash64(Seq(exprs2), 42).eval())
+      checkEvaluation(HiveHash(Seq(exprs1)), HiveHash(Seq(exprs2)).eval())
+    }
+
+    checkResult(Literal.create(-0D, DoubleType), Literal.create(0D, DoubleType))
+    checkResult(Literal.create(-0F, FloatType), Literal.create(0F, FloatType))
+  }
+
   private def testHash(inputSchema: StructType): Unit = {
     val inputGenerator = RandomDataGenerator.forType(inputSchema, nullable = false).get
     val toRow = RowEncoder(inputSchema).createSerializer()
